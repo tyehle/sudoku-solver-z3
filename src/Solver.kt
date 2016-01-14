@@ -1,6 +1,4 @@
-import com.microsoft.z3.BoolExpr
-import com.microsoft.z3.Context
-import com.microsoft.z3.IntExpr
+import com.microsoft.z3.*
 
 /**
  * @author Tobin Yehle
@@ -35,40 +33,45 @@ class Board<T>(val rows: List<List<T>>) {
 
     fun <S> map(f: (T) -> S): Board<S> = Board(rows.map{row -> row.map{f(it)}})
 
+    fun <S> zip(other: Board<S>) = Board(rows.zip(other.rows).map { pair -> pair.first.zip(pair.second) })
+
     override fun toString(): String = rows.map { row -> row.joinToString(" ") }.joinToString("\n")
 }
 
-fun main(args: Array<String>) {
-    val m = 3
-    val n = 3
-
-    val board = makeBoard("""_ _ _ _ 4 8 3 _ _
-    _ _ _ 9 2 _ 5 _ _
-    2 4 1 _ _ _ 9 _ 7
-    1 _ _ 2 _ _ _ _ _
-    _ _ 7 8 _ 6 _ 4 _
-    3 _ 8 _ _ _ 6 5 9
-    8 7 _ 3 _ _ _ _ 5
-    _ _ 2 _ 9 _ 8 7 1
-    9 _ 5 _ _ _ 2 6 _""")
-
+/** Gets a solution to a board if one exists. If there is no solution then the result is null */
+fun solution(initialValues: Board<Int?>, blockRows: Int, blockCols: Int): Board<Int>? {
     val context = Context()
     val s = context.mkSolver()
 
-    val cells = makeVars(context, m*n, m*n)
+    val cells = makeVars(context, blockRows*blockCols, blockRows*blockCols)
 
-    s.add(genConstraints(context, cells, 3, 3, board))
+    s.add(genConstraints(context, cells, blockRows, blockCols, initialValues))
 
-    s.check()
-
-    val result = cells.map { cell -> s.model.eval(cell, false) }
-
-    println(board)
-
-    println("---")
-
-    println(result)
+    return if(s.check() == Status.SATISFIABLE) cells.map { cell -> s.model.eval(cell, false).toString().toInt() }
+           else null
 }
+
+/**
+ * Returns 0, 1 or 2. 0 means there is no solution to the puzzle, 1 means there is exactly 1 solution, and 2 means
+ * there is more than one solution.
+ */
+fun numSolutions(initialValues: Board<Int?>, blockRows: Int, blockCols: Int): Int {
+    val context = Context()
+    val s = context.mkSolver()
+
+    val cells = makeVars(context, blockRows*blockCols, blockRows*blockCols)
+
+    s.add(genConstraints(context, cells, blockRows, blockCols, initialValues))
+
+    if(s.check() == Status.SATISFIABLE) {
+        s.add(genDifferentConstraint(context, cells, cells.map { cell -> s.model.eval(cell, false) }))
+        return if(s.check() == Status.SATISFIABLE) 2 else 1
+    }
+    else return 0
+}
+
+fun genDifferentConstraint(context: Context, variables: Board<IntExpr>, solution: Board<Expr>): BoolExpr =
+        context.mkNot(context.mkAnd(*(variables.zip(solution).elements.map { pair -> context.mkEq(pair.first, pair.second) }.toTypedArray())))
 
 fun makeVar(context: Context, row:Int, col:Int) = context.mkConst("Cell($row, $col)", context.intSort) as IntExpr
 
