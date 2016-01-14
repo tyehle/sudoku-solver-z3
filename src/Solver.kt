@@ -14,7 +14,7 @@ data class Pos(val row: Int, val col: Int)
 class Board<T>(val rows: List<List<T>>) {
     constructor(builder: (Int, Int) -> T, numRows: Int, numCols: Int): this (
             (0..numRows-1).map { rowNum ->
-                (0..rowNum-1).map { colNum ->
+                (0..numCols-1).map { colNum ->
                     builder(rowNum, colNum)
                 }
             }
@@ -32,13 +32,17 @@ class Board<T>(val rows: List<List<T>>) {
     operator fun get(row: Int, col: Int):T = rows[row][col]
 
     val elements = rows.flatten()
+
+    fun <S> map(f: (T) -> S): Board<S> = Board(rows.map{row -> row.map{f(it)}})
+
+    override fun toString(): String = rows.map { row -> row.joinToString(" ") }.joinToString("\n")
 }
 
 fun main(args: Array<String>) {
     val m = 3
     val n = 3
 
-    val board = """_ _ _ _ 4 8 3 _ _
+    val board = makeBoard("""_ _ _ _ 4 8 3 _ _
     _ _ _ 9 2 _ 5 _ _
     2 4 1 _ _ _ 9 _ 7
     1 _ _ 2 _ _ _ _ _
@@ -46,29 +50,40 @@ fun main(args: Array<String>) {
     3 _ 8 _ _ _ 6 5 9
     8 7 _ 3 _ _ _ _ 5
     _ _ 2 _ 9 _ 8 7 1
-    9 _ 5 _ _ _ 2 6 _"""
-
-    val test = Board(listOf(listOf(1, 2), listOf(3 , 4)))
-    println(test.rows)
-    println(test.cols)
+    9 _ 5 _ _ _ 2 6 _""")
 
     val context = Context()
     val s = context.mkSolver()
 
-    s.add(makeCells(context, 3, 3, parseInitialValues(board)))
+    val cells = makeVars(context, m*n, m*n)
+
+    s.add(genConstraints(context, cells, 3, 3, board))
 
     s.check()
 
-    println(s.model)
+    val result = cells.map { cell -> s.model.eval(cell, false) }
+
+    println(board)
+
+    println("---")
+
+    println(result)
 }
 
-fun makeCell(context: Context, row:Int, col:Int) = context.mkConst("Cell($row, $col)", context.intSort) as IntExpr
+fun makeVar(context: Context, row:Int, col:Int) = context.mkConst("Cell($row, $col)", context.intSort) as IntExpr
 
-fun makeCells(context: Context, blockRows: Int, blockCols: Int, initialValues: Board<Int?>):BoolExpr {
-    val variables = Board({row, col -> makeCell(context, row, col)}, initialValues.numRows, initialValues.numCols)
+fun makeVars(context: Context, numRows: Int, numCols: Int) =
+        Board({row, col -> makeVar(context, row, col)}, numRows, numCols)
 
+fun genConstraints(context: Context, variables: Board<IntExpr>, blockRows: Int, blockCols: Int, initialValues: Board<Int?>):BoolExpr {
     val rangeConstraints = variables.elements.map { v -> context.mkAnd(context.mkGt(v, context.mkInt(0)),
-                                                                       context.mkLe(v, context.mkInt(9))) }
+                                                                       context.mkLe(v, context.mkInt(variables.numRows))) }
+
+    val initialValueConstraints = initialValues.indices.filter {
+        pos -> initialValues[pos.row, pos.col] != null
+    }.map {
+        pos -> context.mkEq(variables[pos.row, pos.col], context.mkInt(initialValues[pos.row, pos.col]!!.toInt()))
+    }
 
     val rowConstraints = variables.rows.map { row -> context.mkDistinct(*(row.toTypedArray())) }
 
@@ -87,5 +102,5 @@ fun makeCells(context: Context, blockRows: Int, blockCols: Int, initialValues: B
         context.mkDistinct(*(blockIndices.map{pos -> variables[pos.row, pos.col]}.toTypedArray()))
     } }
 
-    return context.mkAnd(*((rangeConstraints + rowConstraints + colConstraints + blockConstraints).toTypedArray()))
+    return context.mkAnd(*((rangeConstraints + initialValueConstraints + rowConstraints + colConstraints + blockConstraints).toTypedArray()))
 }
