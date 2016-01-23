@@ -17,9 +17,6 @@ fun makeBoard(numbers: List<Int?>):Board<Int?> {
     return Board(numbers.group(numRows))
 }
 
-fun puzzleString(board: Board<Int?>): String =
-    board.map { if(it == null) "_" else it.toString() }.toString()
-
 fun main(args: Array<String>) {
 //    val url = "http://tobin.yehle.io/sudoku-board.txt"
     val url = "http://cs.utah.edu/~tyehle/sudoku/board.txt"
