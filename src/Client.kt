@@ -11,22 +11,30 @@ fun toNumberList(raw: String): List<Int?> = raw.split("\\s+".toRegex()).filter {
     else -> it.toInt()
 } }
 
-fun makeBoard(raw: String):Board<Int?> {
-    val numbersMaybe = toNumberList(raw)
+fun makeBoard(numbers: List<Int?>):Board<Int?> {
+    val numRows = Math.sqrt(numbers.size.toDouble()).toInt()
 
-    val m = numbersMaybe[0]
-    val n = numbersMaybe[1]
-    val boardNumbers = numbersMaybe.drop(2)
-
-    val numRows = Math.sqrt(boardNumbers.size.toDouble()).toInt()
-
-    return Board(boardNumbers.group(numRows))
+    return Board(numbers.group(numRows))
 }
 
+fun puzzleString(board: Board<Int?>): String =
+    board.map { if(it == null) "_" else it.toString() }.toString()
+
 fun main(args: Array<String>) {
-    val url = "http://tobin.yehle.io/sudoku-board.txt"
+//    val url = "http://tobin.yehle.io/sudoku-board.txt"
+    val url = "http://cs.utah.edu/~tyehle/sudoku/board.txt"
 
-    val board = makeBoard(URL(url).readText())
+    val numbers = toNumberList(URL(url).readText())
 
-    println(solution(board, 3, 3))
+    val m = numbers[0] ?: throw RuntimeException("Board size must be defined")
+    val n = numbers[1] ?: throw RuntimeException("Board size must be defined")
+    val board = makeBoard(numbers.drop(2))
+
+    println("Solving\n-------")
+    println(solution(board, m, n))
+
+    println("\nGenerating\n----------")
+    println("3 3\n${puzzleString(randomPuzzle(3, 3))}")
+
+
 }

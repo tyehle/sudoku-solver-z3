@@ -27,11 +27,23 @@ class Board<T>(val rows: List<List<T>>) {
 
     val cols = rows.transpose
 
+    fun blocks(m: Int):List<List<T>> {
+        val n:Int = rows.size / m
+        return (0..m - 1).flatMap { bandNum -> (0..n - 1).map { stackNum ->
+            getBlock(bandNum, stackNum, m, n)
+        } }
+    }
+
+    private fun getBlock(bandNum: Int, stackNum: Int, m: Int, n: Int): List<T> =
+        rows.subList(bandNum * n, (bandNum + 1) * n).flatMap { row -> row.subList(stackNum * m, (stackNum + 1) * m) }
+
     operator fun get(row: Int, col: Int):T = rows[row][col]
 
     val elements = rows.flatten()
 
     fun <S> map(f: (T) -> S): Board<S> = Board(rows.map{row -> row.map{f(it)}})
+
+    fun count(f: (T) -> Boolean): Int = rows.sumBy { row -> row.count(f) }
 
     fun <S> zip(other: Board<S>) = Board(rows.zip(other.rows).map { pair -> pair.first.zip(pair.second) })
 
@@ -39,13 +51,13 @@ class Board<T>(val rows: List<List<T>>) {
 }
 
 /** Gets a solution to a board if one exists. If there is no solution then the result is null */
-fun solution(initialValues: Board<Int?>, blockRows: Int, blockCols: Int): Board<Int>? {
+fun solution(givens: Board<Int?>, blockRows: Int, blockCols: Int): Board<Int>? {
     val context = Context()
     val s = context.mkSolver()
 
     val cells = makeVars(context, blockRows*blockCols, blockRows*blockCols)
 
-    s.add(genConstraints(context, cells, blockRows, blockCols, initialValues))
+    s.add(genConstraints(context, cells, blockRows, blockCols, givens))
 
     return if(s.check() == Status.SATISFIABLE) cells.map { cell -> s.model.eval(cell, false).toString().toInt() }
            else null
@@ -55,19 +67,38 @@ fun solution(initialValues: Board<Int?>, blockRows: Int, blockCols: Int): Board<
  * Returns 0, 1 or 2. 0 means there is no solution to the puzzle, 1 means there is exactly 1 solution, and 2 means
  * there is more than one solution.
  */
-fun numSolutions(initialValues: Board<Int?>, blockRows: Int, blockCols: Int): Int {
+fun distinctCheckNumSolutions(givens: Board<Int?>, blockRows: Int, blockCols: Int): Int {
     val context = Context()
     val s = context.mkSolver()
 
     val cells = makeVars(context, blockRows*blockCols, blockRows*blockCols)
 
-    s.add(genConstraints(context, cells, blockRows, blockCols, initialValues))
+    s.add(genConstraints(context, cells, blockRows, blockCols, givens))
 
     if(s.check() == Status.SATISFIABLE) {
-        s.add(genDifferentConstraint(context, cells, cells.map { cell -> s.model.eval(cell, false) }))
+        s.add(genDifferentConstraint(context, cells, cells.map { s.model.eval(it, false) }))
         return if(s.check() == Status.SATISFIABLE) 2 else 1
     }
     else return 0
+}
+
+fun allSolutions(givens: Board<Int?>, blockRows: Int, blockCols: Int): List<Board<Int>> {
+    val context = Context()
+    val s = context.mkSolver()
+
+    val cells = makeVars(context, blockRows*blockCols, blockRows*blockCols)
+
+    s.add(genConstraints(context, cells, blockRows, blockCols, givens))
+
+    tailrec fun solveAll(context: Context, s: Solver, cells: Board<IntExpr>, solutions: List<Board<Int>> = listOf()):List<Board<Int>> =
+        if(s.check() == Status.SATISFIABLE) {
+            val solution = cells.map { cell -> s.model.eval(cell, false).toString().toInt() }
+            s.add(genDifferentConstraint(context, cells, cells.map { s.model.eval(it, false) }))
+            solveAll(context, s, cells, solutions + solution)
+        }
+        else solutions
+
+    return solveAll(context, s, cells)
 }
 
 fun genDifferentConstraint(context: Context, variables: Board<IntExpr>, solution: Board<Expr>): BoolExpr =
