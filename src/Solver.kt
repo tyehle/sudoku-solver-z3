@@ -64,10 +64,10 @@ fun solution(givens: Board<Int?>, blockRows: Int, blockCols: Int): Board<Int>? {
 }
 
 /**
- * Returns 0, 1 or 2. 0 means there is no solution to the puzzle, 1 means there is exactly 1 solution, and 2 means
- * there is more than one solution.
+ * Returns true, false or null. Null means there is no solution to the puzzle, true means there is exactly 1 solution,
+ * and false means there is more than one solution.
  */
-fun distinctCheckNumSolutions(givens: Board<Int?>, blockRows: Int, blockCols: Int): Int {
+fun unique(givens: Board<Int?>, blockRows: Int, blockCols: Int): Boolean? {
     val context = Context()
     val s = context.mkSolver()
 
@@ -75,11 +75,11 @@ fun distinctCheckNumSolutions(givens: Board<Int?>, blockRows: Int, blockCols: In
 
     s.add(genConstraints(context, cells, blockRows, blockCols, givens))
 
-    if(s.check() == Status.SATISFIABLE) {
+    return if(s.check() == Status.SATISFIABLE) {
         s.add(genDifferentConstraint(context, cells, cells.map { s.model.eval(it, false) }))
-        return if(s.check() == Status.SATISFIABLE) 2 else 1
+        s.check() == Status.UNSATISFIABLE
     }
-    else return 0
+    else null
 }
 
 fun allSolutions(givens: Board<Int?>, blockRows: Int, blockCols: Int): List<Board<Int>> {

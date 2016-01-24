@@ -43,7 +43,8 @@ fun <T> Board<T?>.without(pos: Pos): Board<T?> =
 
 fun randomBoard(m: Int, n: Int): Board<Int> {
     val emptyBoard = Board<Int?>({i, j -> null}, m*n, m*n)
-    val threshold = m*n*n
+//    val threshold = (m*m*n*n) / 3
+    val threshold = Math.pow((m*n).±toDouble(), 1.5)
 
     tailrec fun buildBoard(board: Board<Int?> = emptyBoard, tries: Int = 0):Board<Int> =
         if(board.count { it != null } >= threshold) {
@@ -67,7 +68,11 @@ fun randomPuzzle(m: Int, n: Int): Board<Int?> {
 
     fun removeIfPossible(board: Board<Int?>, pos: Pos): Board<Int?> {
         val without = board.without(pos)
-        return if(distinctCheckNumSolutions(without, m, n) > 1) board else without
+        return when(unique(without, n, m)) {
+            null  -> throw RuntimeException("Error, not solvable!\n$board")
+            false -> board
+            true  -> without
+        }
     }
 
     return randomSolved.indices.shuffle().fold(randomSolved, ::removeIfPossible)

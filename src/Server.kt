@@ -17,6 +17,7 @@ fun main(args: Array<String>) {
 }
 
 fun handler3x3(exchange: HttpExchange) {
+    println("Handler called")
     println("Query: ${exchange.requestURI.query}")
 
     val qs = exchange.requestURI.query.split('&').toMap { kv -> val parts = kv.split('='); Pair(parts[0], parts[1]) }
@@ -26,8 +27,11 @@ fun handler3x3(exchange: HttpExchange) {
     val n = getInt("n")
 
     println("Building a ${m}x$n board")
-    val board = "$m $n\n" + puzzleString(randomPuzzle(m, n))
+    val puzzle = randomPuzzle(m, n)
+    val solution = solution(puzzle, n, m)
+    val board = "$m $n\n" + puzzleString(puzzle)
     println("\nserving:\n$board")
+    println("with solution\n$solution")
     val response = board.toByteArray()
     exchange.sendResponseHeaders(200, response.size.toLong())
     val stream = exchange.responseBody
