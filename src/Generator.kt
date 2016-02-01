@@ -41,10 +41,10 @@ fun <T> Board<T?>.without(pos: Pos): Board<T?> =
               this.numRows,
               this.numCols)
 
-fun randomBoard(m: Int, n: Int): Board<Int> {
+fun randomBoard(m: Int, n: Int, efficient: Boolean): Board<Int> {
     val emptyBoard = Board<Int?>({i, j -> null}, m*n, m*n)
 //    val threshold = (m*m*n*n) / 3
-    val threshold = Math.pow((m*n).toDouble(), 1.5)
+    val threshold = if(efficient) Math.pow((m*n).toDouble(), 1.5) * 1.5 else Math.pow((m*n).toDouble(), 1.5)
 
     tailrec fun buildBoard(board: Board<Int?> = emptyBoard, tries: Int = 0):Board<Int> =
         if(board.count { it != null } >= threshold) {
@@ -57,14 +57,14 @@ fun randomBoard(m: Int, n: Int): Board<Int> {
         else {
             val withNewEntry = board.withGuess()
             if (isValid(withNewEntry, m)) buildBoard(withNewEntry, tries)
-            else buildBoard(tries = tries + 1)
+            else if(efficient) buildBoard(board, tries) else buildBoard(tries = tries + 1)
         }
 
     return buildBoard()
 }
 
-fun randomPuzzle(m: Int, n: Int): Board<Int?> {
-    val randomSolved:Board<Int?> = randomBoard(m, n).map { it } // apparently this shit is required
+fun randomPuzzle(m: Int, n: Int, efficient: Boolean = true): Board<Int?> {
+    val randomSolved:Board<Int?> = randomBoard(m, n, efficient).map { it } // apparently this shit is required
 
     fun removeIfPossible(board: Board<Int?>, pos: Pos): Board<Int?> {
         val without = board.without(pos)

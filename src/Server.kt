@@ -28,7 +28,9 @@ fun boardHandler(exchange: HttpExchange) {
     val n = getInt("n")
 
     println("Building a ${m}x$n board")
-    val puzzle = randomPuzzle(m, n)
+    val fast = m*n >= 9
+    println("efficient? $fast")
+    val puzzle = randomPuzzle(m, n, fast)
     val solution = solution(puzzle, n, m)
     val board = "$m $n\n" + puzzleString(puzzle)
     println("\nserving:\n$board")

@@ -19,7 +19,11 @@ fun makeBoard(numbers: List<Int?>):Board<Int?> {
 
 fun main(args: Array<String>) {
 //    val url = "http://tobin.yehle.io/sudoku-board.txt"
-    val url = "http://cs.utah.edu/~tyehle/sudoku/board.txt"
+//    val url = "http://cs.utah.edu/~tyehle/sudoku/board.txt"
+//    val url = "http://www.cs.utah.edu/~acherk/tooPro.txt"
+    val url = if(args.size > 0) args[0] else "http://www.cs.utah.edu/~acherk/tooPro.txt"
+
+    println("Downloading board from $url")
 
     val numbers = toNumberList(URL(url).readText())
 
@@ -28,10 +32,7 @@ fun main(args: Array<String>) {
     val board = makeBoard(numbers.drop(2))
 
     println("Solving\n-------")
-    println(solution(board, m, n))
-
-    println("\nGenerating\n----------")
-    println("3 3\n${puzzleString(randomPuzzle(3, 3))}")
-
-
+    val list = allSolutions(board, m, n)
+    println("${list.size} solutions found\n")
+    println(list.first())
 }
